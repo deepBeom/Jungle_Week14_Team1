@@ -3,6 +3,7 @@
 #include "Editor/UI/Asset/AssetEditorWidget.h"
 #include "Object/FName.h"
 #include "Editor/Viewport/Asset/StaticMeshEditorViewportClient.h"
+#include "Math/Vector.h"
 
 struct FStaticMesh;
 struct ImDrawList;
@@ -28,7 +29,8 @@ public:
 
 private:
 	void RenderMeshStatsOverlay(ImDrawList* DrawList, const ImVec2& ViewportPos) const;
-	void RenderDetailsPanel(FStaticMesh* Asset) const;
+	void RenderDetailsPanel(FStaticMesh* Asset);
+	void RenderMuzzleProbePanel();
 
 private:
 	FStaticMeshEditorViewportClient ViewportClient;
@@ -36,4 +38,8 @@ private:
 	uint32 InstanceId;
 	FName PreviewWorldHandle = FName::None;
 	FString WindowIdSuffix;
+
+	bool bMuzzleProbeEnabled = true;
+	FVector MuzzleProbeLocalOffset = FVector::ZeroVector;
+	float MuzzleProbeAxisLength = 0.5f;
 };

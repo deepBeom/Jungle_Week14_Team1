@@ -4,6 +4,7 @@
 #include "Viewport/ViewportClient.h"
 #include "Editor/Viewport/ViewportCameraTransform.h"
 #include "Editor/Slate/SWindow.h"
+#include "Math/Vector.h"
 
 #include <d3d11.h>
 
@@ -24,6 +25,8 @@ public:
 	void SetPreviewActor(AActor* InActor) { PreviewActor = InActor; }
 	void SetPreviewMeshComponent(UStaticMeshComponent* InComp) { PreviewMeshComponent = InComp; }
 	void SetViewportRect(float X, float Y, float Width, float Height) { ViewportScreenRect = { X, Y, Width, Height }; }
+	void SetMuzzleProbe(bool bEnabled, const FVector& LocalOffset, float AxisLength);
+	FVector GetMuzzleProbeWorldLocation() const;
 
 	bool IsRenderable() const override { return bIsRenderable; }
 	bool IsMouseOverViewport() const override;
@@ -36,6 +39,7 @@ public:
 
 	void NotifyViewportResized(int32 NewWidth, int32 NewHeight) override;
 	bool GetCameraView(FMinimalViewInfo& OutPOV) const override;
+	void SubmitFrameDebugDraw() override;
 
 	void Tick(float DeltaTime);
 
@@ -64,4 +68,8 @@ private:
 	FVector LastAppliedCameraLocation;
 	bool bLastAppliedCameraLocationInitialized = false;
 	const float SmoothLocationSpeed = 10.0f;
+
+	bool bMuzzleProbeEnabled = true;
+	FVector MuzzleProbeLocalOffset = FVector::ZeroVector;
+	float MuzzleProbeAxisLength = 0.5f;
 };

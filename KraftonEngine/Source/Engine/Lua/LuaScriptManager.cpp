@@ -1992,6 +1992,14 @@ void FLuaScriptManager::RegisterActorBindings(sol::state& Lua)
 	{
 		Component.SetRelativeRotation(Rotation);
 	},
+		"TransformPosition", [](USceneComponent& Component, const FVector& LocalPosition)
+	{
+		return Component.GetWorldMatrix().TransformPositionWithW(LocalPosition);
+	},
+		"TransformVector", [](USceneComponent& Component, const FVector& LocalVector)
+	{
+		return Component.GetWorldMatrix().TransformVector(LocalVector);
+	},
 		"AddLocalRotation", [](USceneComponent& Component, const FVector& DeltaRotation)
 	{
 		// Lua uses Vector(X=Roll, Y=Pitch, Z=Yaw) in degrees. Convert only the
@@ -2032,6 +2040,8 @@ void FLuaScriptManager::RegisterActorBindings(sol::state& Lua)
 		.Method("---@param location Vector\nfunction SceneComponent:SetLocation(location) end")
 		.Method("---@return Vector\nfunction SceneComponent:GetRotation() end")
 		.Method("---@param rotation Vector\nfunction SceneComponent:SetRotation(rotation) end")
+		.Method("---@param localPosition Vector\n---@return Vector\nfunction SceneComponent:TransformPosition(localPosition) end")
+		.Method("---@param localVector Vector\n---@return Vector\nfunction SceneComponent:TransformVector(localVector) end")
 		.Method("---@return Vector\nfunction SceneComponent:GetRelativeScale() end")
 		.Method("---@param scale Vector\nfunction SceneComponent:SetRelativeScale(scale) end")
 		.Method("---@param deltaRotation Vector # Vector(X=Roll, Y=Pitch, Z=Yaw), degrees; internally composed as quaternion.\nfunction SceneComponent:AddLocalRotation(deltaRotation) end");

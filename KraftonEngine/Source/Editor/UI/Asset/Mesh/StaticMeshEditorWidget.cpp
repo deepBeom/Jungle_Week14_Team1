@@ -13,6 +13,7 @@
 #include "UI/Toolbar/ViewportToolbar.h"
 #include "Viewport/Viewport.h"
 
+#include <cstdio>
 #include <imgui.h>
 
 namespace
@@ -25,6 +26,15 @@ namespace
 			Result.insert(static_cast<size_t>(InsertPos), ",");
 		}
 		return Result;
+	}
+
+	FString FormatLuaVector(const FVector& Value)
+	{
+		char Buffer[128];
+		std::snprintf(Buffer, sizeof(Buffer),
+			"Vector.new(%.4f, %.4f, %.4f)",
+			Value.X, Value.Y, Value.Z);
+		return FString(Buffer);
 	}
 }
 
@@ -107,6 +117,7 @@ void FStaticMeshEditorWidget::Open(UObject* Object)
 	ViewportClient.SetPreviewWorld(WorldContext.World);
 	ViewportClient.SetPreviewActor(Actor);
 	ViewportClient.SetPreviewMeshComponent(Actor->GetComponentByClass<UStaticMeshComponent>());
+	ViewportClient.SetMuzzleProbe(bMuzzleProbeEnabled, MuzzleProbeLocalOffset, MuzzleProbeAxisLength);
 	ViewportClient.ResetCameraToPreviewBounds();
 
 	WorldContext.World->SetEditorPOVProvider(&ViewportClient);
@@ -290,7 +301,7 @@ void FStaticMeshEditorWidget::RenderMeshStatsOverlay(ImDrawList* DrawList, const
 	DrawList->AddText(TextPos, IM_COL32(235, 238, 242, 255), Text.c_str());
 }
 
-void FStaticMeshEditorWidget::RenderDetailsPanel(FStaticMesh* Asset) const
+void FStaticMeshEditorWidget::RenderDetailsPanel(FStaticMesh* Asset)
 {
 	if (!Asset)
 	{
@@ -302,4 +313,46 @@ void FStaticMeshEditorWidget::RenderDetailsPanel(FStaticMesh* Asset) const
 	ImGui::Text("Indices: %s", FormatStaticMeshStatCount(Asset->Indices.size()).c_str());
 	ImGui::Text("Triangles: %s", FormatStaticMeshStatCount(Asset->Indices.size() / 3).c_str());
 	ImGui::Text("Sections: %s", FormatStaticMeshStatCount(Asset->Sections.size()).c_str());
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	RenderMuzzleProbePanel();
+}
+
+void FStaticMeshEditorWidget::RenderMuzzleProbePanel()
+{
+	ImGui::Text("Muzzle Probe");
+	ImGui::Checkbox("Show Probe", &bMuzzleProbeEnabled);
+
+	float Offset[3] = {
+		MuzzleProbeLocalOffset.X,
+		MuzzleProbeLocalOffset.Y,
+		MuzzleProbeLocalOffset.Z
+	};
+
+	if (ImGui::DragFloat3("Local Offset", Offset, 0.01f, -10000.0f, 10000.0f, "%.3f"))
+	{
+		MuzzleProbeLocalOffset = FVector(Offset[0], Offset[1], Offset[2]);
+	}
+
+	ImGui::DragFloat("Axis Length", &MuzzleProbeAxisLength, 0.01f, 0.01f, 1000.0f, "%.3f");
+
+	if (ImGui::Button("Reset Offset"))
+	{
+		MuzzleProbeLocalOffset = FVector::ZeroVector;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Copy Lua Offset"))
+	{
+		const FString LuaVector = FormatLuaVector(MuzzleProbeLocalOffset);
+		ImGui::SetClipboardText(LuaVector.c_str());
+	}
+
+	const FString LuaVector = FormatLuaVector(MuzzleProbeLocalOffset);
+	ImGui::TextWrapped("%s", LuaVector.c_str());
+
+	const FVector ProbeWorld = ViewportClient.GetMuzzleProbeWorldLocation();
+	ImGui::Text("World: %.3f, %.3f, %.3f", ProbeWorld.X, ProbeWorld.Y, ProbeWorld.Z);
+
+	ViewportClient.SetMuzzleProbe(bMuzzleProbeEnabled, MuzzleProbeLocalOffset, MuzzleProbeAxisLength);
 }

@@ -54,6 +54,8 @@ MELEE_KNOCKBACK_DISTANCE = 5.2
 MELEE_KNOCKBACK_DURATION = 0.22
 MUZZLE_BONE = "ja_c_propGun"
 MUZZLE_LOCAL_OFFSET = Vector.new(0.0, 0.0, 0.0)
+BOSS_WEAPON_MUZZLE_LOCAL_OFFSET = Vector.new(204.0, 26.0, 186.0)
+BOSS_WEAPON_TRACE_START_OFFSET = 0.75
 BOSS_WEAPON_MUZZLE_FORWARD_OFFSET = 1.5
 BOSS_WEAPON_MUZZLE_UP_OFFSET = 0.15
 TACTIC_REEVALUATE_INTERVAL = 0.25
@@ -1202,6 +1204,39 @@ local function get_muzzle_location()
 
     local weaponActor = _G.Level3BossGunActor
     if is_valid_actor(weaponActor) then
+        if type(weaponActor.GetStaticMesh) == "function" then
+            local weaponMesh = weaponActor:GetStaticMesh()
+            if weaponMesh ~= nil then
+                if type(weaponMesh.TransformPosition) == "function" then
+                    local muzzle = weaponMesh:TransformPosition(BOSS_WEAPON_MUZZLE_LOCAL_OFFSET)
+                    if muzzle ~= nil and muzzle:Length() > 0.001 then
+                        frameMuzzleLocation = muzzle
+                        return frameMuzzleLocation
+                    end
+                end
+
+                local meshLocation = weaponMesh.Location
+                local forward = weaponMesh.Forward
+                local right = weaponMesh.Right
+                local up = weaponMesh.Up
+                local scale = type(weaponMesh.GetRelativeScale) == "function"
+                    and weaponMesh:GetRelativeScale()
+                    or weaponMesh.RelativeScale
+                    or Vector.new(1.0, 1.0, 1.0)
+
+                if meshLocation ~= nil
+                    and forward ~= nil and forward:Length() > 0.001
+                    and right ~= nil and right:Length() > 0.001
+                    and up ~= nil and up:Length() > 0.001 then
+                    frameMuzzleLocation = meshLocation
+                        + forward:Normalized() * (BOSS_WEAPON_MUZZLE_LOCAL_OFFSET.X * scale.X)
+                        + right:Normalized() * (BOSS_WEAPON_MUZZLE_LOCAL_OFFSET.Y * scale.Y)
+                        + up:Normalized() * (BOSS_WEAPON_MUZZLE_LOCAL_OFFSET.Z * scale.Z)
+                    return frameMuzzleLocation
+                end
+            end
+        end
+
         local weaponLocation = type(weaponActor.GetActorLocation) == "function"
             and weaponActor:GetActorLocation()
             or weaponActor.Location
@@ -1732,6 +1767,7 @@ local function start_attack(kind, animPath, duration, hitDelay, range, damage, c
         shotsFired = 0,
         shotInterval = isGunBurst and (BOSS_GUN_BURST_DURATION / (BOSS_GUN_BURST_SHOTS - 1)) or nil,
         nextShotTime = scaledHitDelay,
+        muzzleLocation = nil,
     }
 
     actionTimer = scaledDuration
@@ -1757,6 +1793,14 @@ local function fire_active_attack_shot()
     if target == nil or not target:IsValid() then return end
 
     local source = get_muzzle_location()
+    if activeAttack.kind ~= "melee" then
+        if activeAttack.muzzleLocation == nil then
+            activeAttack.muzzleLocation = source
+        else
+            source = activeAttack.muzzleLocation
+        end
+    end
+
     local targetPos = get_target_aim_location(target)
     local shotTargetPos = targetPos
     if activeAttack.kind ~= "melee" then
@@ -1784,14 +1828,15 @@ local function fire_active_attack_shot()
     if activeAttack.kind ~= "melee" and World ~= nil and World.RaycastPrimitive ~= nil then
         play_event_at(BOSS_WEAPON_FIRE_EVENT, source)
 
-        local hit = World.RaycastPrimitive(source, shotDir, activeAttack.range, obj)
+        local traceSource = source + shotDir * BOSS_WEAPON_TRACE_START_OFFSET
+        local hit = World.RaycastPrimitive(traceSource, shotDir, activeAttack.range, obj)
         hitLocation = source + shotDir * activeAttack.range
         if hit ~= nil then
             hitLocation = hit.WorldHitLocation or hit.ImpactPoint or hitLocation
             hitNormal = hit.WorldNormal or hit.ImpactNormal
             hitActor = hit.HitActor
         elseif World.RaycastWorldStatic ~= nil then
-            hit = World.RaycastWorldStatic(source, shotDir, activeAttack.range, obj)
+            hit = World.RaycastWorldStatic(traceSource, shotDir, activeAttack.range, obj)
             if hit ~= nil then
                 hitLocation = hit.WorldHitLocation or hit.ImpactPoint or hitLocation
                 hitNormal = hit.WorldNormal or hit.ImpactNormal

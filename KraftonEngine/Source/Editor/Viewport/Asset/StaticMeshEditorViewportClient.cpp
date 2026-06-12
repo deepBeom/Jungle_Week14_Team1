@@ -1,6 +1,7 @@
 #include "StaticMeshEditorViewportClient.h"
 
 #include "Component/Primitive/StaticMeshComponent.h"
+#include "Debug/DrawDebugHelpers.h"
 #include "Input/InputSystem.h"
 #include "Math/MathUtils.h"
 #include "Render/Types/MinimalViewInfo.h"
@@ -90,12 +91,51 @@ bool FStaticMeshEditorViewportClient::GetCameraView(FMinimalViewInfo& OutPOV) co
 	return true;
 }
 
+void FStaticMeshEditorViewportClient::SetMuzzleProbe(bool bEnabled, const FVector& LocalOffset, float AxisLength)
+{
+	bMuzzleProbeEnabled = bEnabled;
+	MuzzleProbeLocalOffset = LocalOffset;
+	MuzzleProbeAxisLength = max(0.01f, AxisLength);
+}
+
+FVector FStaticMeshEditorViewportClient::GetMuzzleProbeWorldLocation() const
+{
+	if (!PreviewMeshComponent)
+	{
+		return FVector::ZeroVector;
+	}
+
+	return PreviewMeshComponent->GetWorldMatrix().TransformPositionWithW(MuzzleProbeLocalOffset);
+}
+
 void FStaticMeshEditorViewportClient::Tick(float DeltaTime)
 {
 	SyncCameraSmoothingTarget();
 	ApplySmoothedCameraLocation(DeltaTime);
 	TickShortcuts();
 	TickInput(DeltaTime);
+}
+
+void FStaticMeshEditorViewportClient::SubmitFrameDebugDraw()
+{
+	if (!bMuzzleProbeEnabled || !PreviewWorld || !PreviewMeshComponent)
+	{
+		return;
+	}
+
+	const FMatrix& MeshWorld = PreviewMeshComponent->GetWorldMatrix();
+	const FVector ProbeWorld = MeshWorld.TransformPositionWithW(MuzzleProbeLocalOffset);
+	const FVector MeshOrigin = MeshWorld.TransformPositionWithW(FVector::ZeroVector);
+	const FVector AxisX = MeshWorld.TransformVector(FVector(MuzzleProbeAxisLength, 0.0f, 0.0f));
+	const FVector AxisY = MeshWorld.TransformVector(FVector(0.0f, MuzzleProbeAxisLength, 0.0f));
+	const FVector AxisZ = MeshWorld.TransformVector(FVector(0.0f, 0.0f, MuzzleProbeAxisLength));
+	const float MarkerRadius = max(0.025f, MuzzleProbeAxisLength * 0.12f);
+
+	DrawDebugLine(PreviewWorld, MeshOrigin, ProbeWorld, FColor(0, 220, 255), 0.0f);
+	DrawDebugLine(PreviewWorld, ProbeWorld - AxisX, ProbeWorld + AxisX, FColor::Red(), 0.0f);
+	DrawDebugLine(PreviewWorld, ProbeWorld - AxisY, ProbeWorld + AxisY, FColor::Green(), 0.0f);
+	DrawDebugLine(PreviewWorld, ProbeWorld - AxisZ, ProbeWorld + AxisZ, FColor::Blue(), 0.0f);
+	DrawDebugSphere(PreviewWorld, ProbeWorld, MarkerRadius, 16, FColor(255, 210, 40), 0.0f);
 }
 
 void FStaticMeshEditorViewportClient::TickShortcuts()

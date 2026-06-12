@@ -1767,7 +1767,6 @@ local function start_attack(kind, animPath, duration, hitDelay, range, damage, c
         shotsFired = 0,
         shotInterval = isGunBurst and (BOSS_GUN_BURST_DURATION / (BOSS_GUN_BURST_SHOTS - 1)) or nil,
         nextShotTime = scaledHitDelay,
-        muzzleLocation = nil,
     }
 
     actionTimer = scaledDuration
@@ -1793,14 +1792,6 @@ local function fire_active_attack_shot()
     if target == nil or not target:IsValid() then return end
 
     local source = get_muzzle_location()
-    if activeAttack.kind ~= "melee" then
-        if activeAttack.muzzleLocation == nil then
-            activeAttack.muzzleLocation = source
-        else
-            source = activeAttack.muzzleLocation
-        end
-    end
-
     local targetPos = get_target_aim_location(target)
     local shotTargetPos = targetPos
     if activeAttack.kind ~= "melee" then
@@ -1844,7 +1835,7 @@ local function fire_active_attack_shot()
             end
         end
 
-        EnergyBullet.PlayInto(activeEnergyBullets, source, hitLocation)
+        EnergyBullet.PlayInto(activeEnergyBullets, source, hitLocation, get_muzzle_location)
 
         if hit ~= nil then
             CombatEvents.NotifyAttackImpact(obj, {
@@ -2563,6 +2554,7 @@ function Tick(dt)
 
     update_drake_combat_dialogue(dt)
     tick_boss_particles(dt or 0.0)
+    frameMuzzleLocation = nil
 
     if isDead then
         update_death_fall(dt)
